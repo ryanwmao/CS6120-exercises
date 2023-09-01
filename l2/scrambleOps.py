@@ -7,12 +7,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("file", type=argparse.FileType("r"), default=sys.stdin)
     args = parser.parse_args()
-
-    file = json.load(args.input)
+    file = json.load(args.file)
 
     ops = ["add", "sub", "mul", "div"]
 
-    for function in file["funcitons"]:
+    for function in file["functions"]:
         for instruction in function["instrs"]:
             if "op" in instruction and instruction["op"] in ops:
                 instruction["op"] = random.choice(ops)
