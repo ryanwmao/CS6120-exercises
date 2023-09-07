@@ -1,7 +1,5 @@
 #include "cfg.hpp"
 
-#include <iostream>
-
 int anon_bb_cnt = 0;
 
 std::string next_bb_name() { return "_bb." + std::to_string(++anon_bb_cnt); }
@@ -26,19 +24,4 @@ std::list<BasicBlock> form_bbs(std::list<json> &instrs) {
     }
   }
   return res;
-}
-
-int main() {
-  json prog = json::parse(std::cin);
-  for (auto &fn : prog["functions"]) {
-    auto instrs = fn["instrs"].template get<std::list<json>>();
-    auto bbs = form_bbs(instrs);
-
-    for (auto &bb : bbs) {
-      std::cout << bb.name << std::endl;
-      for (auto &instr : bb.instrs)
-        std::cout << "\t" << instr << std::endl;
-    }
-    std::cout << std::endl;
-  }
 }
