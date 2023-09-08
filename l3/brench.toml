@@ -1,5 +1,5 @@
 extract = 'total_dyn_inst: (\d+)'
-benchmarks = '../benchmarks/*/*.bril'
+benchmarks = '../benchmarks/core/*.bril'
 
 [runs.baseline]
 pipeline = [
@@ -10,6 +10,15 @@ pipeline = [
 [runs.tdce]
 pipeline = [
     "bril2json",
+    "../build/l3/tdce",
+    "brili -p {args}",
+]
+
+[runs.lvn_tdce]
+pipeline = [
+    "bril2json",
+    "../build/l3/tdce",
+    "python lvn.py",
     "../build/l3/tdce",
     "brili -p {args}",
 ]
