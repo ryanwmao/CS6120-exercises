@@ -46,4 +46,6 @@ target_include_directories(cfg-lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(cfg-main ${CMAKE_CURRENT_SOURCE_DIR}/cfg.cpp)
 target_link_libraries(cfg-main cfg-lib)
 
+add_subdirectory(core)
+add_subdirectory(coretest)
 add_subdirectory(l3)
