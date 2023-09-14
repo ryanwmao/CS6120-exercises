@@ -1,6 +1,7 @@
 #pragma once
 
 #include "casting.hpp"
+#include "string_pool.hpp"
 
 #include <boost/intrusive/list.hpp>
 #include <list>
@@ -55,8 +56,11 @@ enum class InstrKind : char { Label, Const, Value, Effect };
 struct Instr : public boost::intrusive::list_base_hook<> {
   const InstrKind kind;
 
-  const std::vector<std::string> *uses() const;
-  const std::string *def() const;
+  const std::vector<VarRef> *uses() const;
+  std::vector<VarRef> *uses();
+
+  const VarRef *def() const;
+  VarRef *def();
 
 protected:
   Instr(const InstrKind kind_) : kind(kind_) {}
@@ -72,7 +76,7 @@ struct Label : Instr {
 };
 
 struct Const : Instr {
-  std::string dest;
+  VarRef dest;
   Type *type;
   // based off of type
   union Literal {
@@ -88,9 +92,8 @@ struct Const : Instr {
   } value;
 
 #define CONST_CONS(cpp_type)                                                   \
-  Const(std::string &&dest_, Type *type_, cpp_type val_)                       \
-      : Instr(InstrKind::Const), dest(std::move(dest_)), type(type_),          \
-        value(val_) {}
+  Const(VarRef dest_, Type *type_, cpp_type val_)                              \
+      : Instr(InstrKind::Const), dest(dest_), type(type_), value(val_) {}
 
   CONST_CONS(int)
   CONST_CONS(float)
@@ -102,23 +105,22 @@ struct Const : Instr {
 };
 
 struct Value : Instr {
-  std::string dest;
+  VarRef dest;
   Type *type;
   std::string op;
-  std::vector<std::string> args;
+  std::vector<VarRef> args;
   std::vector<std::string> labels;
   std::vector<std::string> funcs;
 
-  Value(std::string &&dest_, Type *type_, std::string &&op_)
-      : Instr(InstrKind::Value), dest(std::move(dest_)), type(type_),
-        op(std::move(op_)) {}
+  Value(VarRef dest_, Type *type_, std::string &&op_)
+      : Instr(InstrKind::Value), dest(dest_), type(type_), op(std::move(op_)) {}
 
   static bool classof(const Instr *t) { return t->kind == InstrKind::Value; }
 };
 
 struct Effect : Instr {
   std::string op;
-  std::vector<std::string> args;
+  std::vector<VarRef> args;
   std::vector<std::string> labels;
   std::vector<std::string> funcs;
 
@@ -151,10 +153,10 @@ using BBList = boost::intrusive::list<BasicBlock>;
 // FUNCTION AND PROGRAM
 
 struct Arg {
-  std::string name;
+  VarRef name;
   Type *type;
 
-  Arg(std::string &&name_, Type *type_) : name(name_), type(type_) {}
+  Arg(VarRef name_, Type *type_) : name(name_), type(type_) {}
 };
 
 struct Func {
@@ -163,7 +165,12 @@ struct Func {
   std::vector<Arg> args;
   BBList bbs;
 
+  StringPool *sp;
+  VarPool vp;
+
   std::vector<const Instr *> allInstrs() const;
+
+  Func() : sp(new StringPool()), vp(*sp) {}
 };
 
 struct Prog {
@@ -173,7 +180,7 @@ struct Prog {
 } // namespace bril
 
 namespace bril {
-inline const std::vector<std::string> *Instr::uses() const {
+inline const std::vector<VarRef> *Instr::uses() const {
   switch (kind) {
   case bril::InstrKind::Const:
   case bril::InstrKind::Label:
@@ -184,8 +191,12 @@ inline const std::vector<std::string> *Instr::uses() const {
     return &cast<Value>(this)->args;
   }
 }
+inline std::vector<VarRef> *Instr::uses() {
+  return const_cast<std::vector<VarRef> *>(
+      (const_cast<const Instr *>(this)->uses()));
+}
 
-inline const std::string *Instr::def() const {
+inline const VarRef *Instr::def() const {
   switch (kind) {
   case bril::InstrKind::Const:
     return &cast<Const>(this)->dest;
@@ -195,5 +206,8 @@ inline const std::string *Instr::def() const {
   case bril::InstrKind::Effect:
     return nullptr;
   }
+}
+inline VarRef *Instr::def() {
+  return const_cast<VarRef *>((const_cast<const Instr *>(this)->def()));
 }
 } // namespace bril

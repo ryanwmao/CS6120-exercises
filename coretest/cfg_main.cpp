@@ -20,7 +20,7 @@ int main() {
       std::cout << std::endl;
 
       for (auto &instr : bb.code)
-        std::cout << "\t" << json{instr} << std::endl;
+        std::cout << "\t" << to_json(instr, fn) << std::endl;
 
       std::cout << "  succs: ";
       for (auto e : bb.exits)

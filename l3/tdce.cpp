@@ -13,13 +13,13 @@ void tdce_global(bril::Func &fn) {
   while (!converged) {
     converged = true;
 
-    std::unordered_set<std::string> uses;
+    std::unordered_set<bril::VarRef> uses;
     for (auto &bb : fn.bbs) {
       for (const auto &instr : bb.code) {
         auto args = instr.uses();
         if (!args)
           continue;
-        for (const auto &arg : *args)
+        for (auto arg : *args)
           uses.insert(arg);
       }
     }
@@ -43,7 +43,7 @@ void tdce_bb(bril::BasicBlock &bb) {
   bool converged = false;
   while (!converged) {
     converged = true;
-    std::unordered_set<std::string> dead;
+    std::unordered_set<bril::VarRef> dead;
 
     auto it = bb.code.end();
     while (it != bb.code.begin()) {

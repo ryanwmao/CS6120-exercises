@@ -1,8 +1,12 @@
 #include "parse.hpp"
 #include "core/cfg.hpp"
+#include <iostream>
 #include <memory>
 
 namespace bril {
+
+Func *from_fn = nullptr;
+VarPool *from_vp = nullptr;
 
 Type *type_from_json(const json &j) {
   if (j.is_object())
@@ -21,17 +25,17 @@ Type *type_from_json(const json &j) {
 }
 void from_json(const json &j, Type *&t) { t = type_from_json(j); }
 Const *const_from_json(const json &j) {
-  std::string dest = j.at("dest").template get<std::string>();
+  auto dest = from_vp->varRefOf(j.at("dest").template get<std::string>());
   auto t = type_from_json(j.at("type"));
   switch (t->kind) {
   case TypeKind::Bool:
-    return new Const(std::move(dest), t, j.at("value").template get<bool>());
+    return new Const(dest, t, j.at("value").template get<bool>());
   case TypeKind::Int:
-    return new Const(std::move(dest), t, j.at("value").template get<int>());
+    return new Const(dest, t, j.at("value").template get<int>());
   case TypeKind::Float:
-    return new Const(std::move(dest), t, j.at("value").template get<float>());
+    return new Const(dest, t, j.at("value").template get<float>());
   case TypeKind::Char:
-    return new Const(std::move(dest), t, j.at("value").template get<char>());
+    return new Const(dest, t, j.at("value").template get<char>());
   default:
     break;
   }
@@ -44,10 +48,12 @@ Instr *instr_from_json(const json &j) {
   if (op == "const")
     return const_from_json(j);
   if (j.contains("dest")) {
-    auto v = new Value(j.at("dest").template get<std::string>(),
-                       type_from_json(j.at("type")), std::move(op));
-    if (j.contains("args"))
-      j.at("args").get_to(v->args);
+    auto dest = from_vp->varRefOf(j.at("dest").template get<std::string>());
+    auto v = new Value(dest, type_from_json(j.at("type")), std::move(op));
+    if (j.contains("args")) {
+      for (auto &a : j.at("args"))
+        v->args.push_back(from_vp->varRefOf(a.template get<std::string>()));
+    }
     if (j.contains("funcs"))
       j.at("funcs").get_to(v->funcs);
     if (j.contains("labels"))
@@ -55,8 +61,10 @@ Instr *instr_from_json(const json &j) {
     return v;
   } else {
     auto v = new Effect(std::move(op));
-    if (j.contains("args"))
-      j.at("args").get_to(v->args);
+    if (j.contains("args")) {
+      for (auto &a : j.at("args"))
+        v->args.push_back(from_vp->varRefOf(a.template get<std::string>()));
+    }
     if (j.contains("funcs"))
       j.at("funcs").get_to(v->funcs);
     if (j.contains("labels"))
@@ -68,13 +76,19 @@ Instr *instr_from_json(const json &j) {
 }
 void from_json(const json &j, Instr *&i) { i = instr_from_json(j); }
 void from_json(const json &j, Func &fn) {
+  from_fn = &fn;
+  from_vp = &fn.vp;
+
   j.at("name").get_to(fn.name);
   if (j.contains("type"))
     j.at("type").get_to(fn.ret_type);
+  else
+    fn.ret_type = nullptr;
   if (j.contains("args")) {
     for (const auto &arg : j.at("args")) {
-      fn.args.emplace_back(arg.at("name").template get<std::string>(),
-                           type_from_json(arg.at("type")));
+      auto arg_ref =
+          from_vp->varRefOf(arg.at("name").template get<std::string>());
+      fn.args.emplace_back(arg_ref, type_from_json(arg.at("type")));
     }
   }
   std::vector<Instr *> instrs;
@@ -82,8 +96,15 @@ void from_json(const json &j, Func &fn) {
     instrs.push_back(instr.template get<Instr *>());
   }
   fn.bbs = toCFG(instrs);
+
+  from_vp = nullptr;
+  from_fn = nullptr;
 }
 void from_json(const json &j, Prog &p) { j.at("functions").get_to(p.fns); }
+
+const Func *to_fn = nullptr;
+const VarPool *to_vp = nullptr;
+
 void to_json(json &j, Type *const &t) {
   switch (t->kind) {
   case TypeKind::Int:
@@ -99,19 +120,21 @@ void to_json(json &j, Type *const &t) {
     j = "char";
     break;
   case TypeKind::Ptr:
-    j = json{{"ptr", static_cast<const PtrType *>(t)->type}};
+    j = json{{"ptr", cast<PtrType>(t)->type}};
     break;
   }
 }
 void to_json(json &j, Arg const &a) {
-  j = json{{"name", a.name}, {"type", a.type}};
+  j = json{{"name", to_vp->strOf(a.name)}, {"type", a.type}};
 }
 void to_json(json &j, const Value &i) {
-  j = json{{"dest", i.dest}, {"op", i.op},       {"type", i.type},
-           {"args", i.args}, {"funcs", i.funcs}, {"labels", i.labels}};
-  if (!i.args.empty())
-    j.emplace("args", i.args);
-  // j["args"] = i.args;
+  j = json{{"dest", to_vp->strOf(i.dest)}, {"op", i.op}, {"type", i.type}};
+  if (!i.args.empty()) {
+    std::vector<std::string_view> args;
+    for (auto a : i.args)
+      args.push_back(to_vp->strOf(a));
+    j["args"] = std::move(args);
+  }
   if (!i.funcs.empty())
     j["funcs"] = i.funcs;
   if (!i.labels.empty())
@@ -120,15 +143,19 @@ void to_json(json &j, const Value &i) {
 void to_json(json &j, const Label &i) { j = json{{"label", i.name}}; }
 void to_json(json &j, const Effect &i) {
   j = json{{"op", i.op}};
-  if (!i.args.empty())
-    j.emplace("args", i.args);
+  if (!i.args.empty()) {
+    std::vector<std::string_view> args;
+    for (auto a : i.args)
+      args.push_back(to_vp->strOf(a));
+    j["args"] = std::move(args);
+  }
   if (!i.funcs.empty())
     j["funcs"] = i.funcs;
   if (!i.labels.empty())
     j["labels"] = i.labels;
 }
 void to_json(json &j, const Const &i) {
-  j = json{{"dest", i.dest}, {"op", "const"}, {"type", i.type}};
+  j = json{{"dest", to_vp->strOf(i.dest)}, {"op", "const"}, {"type", i.type}};
   switch (i.type->kind) {
   case TypeKind::Int:
     j["value"] = i.value.int_val;
@@ -163,11 +190,31 @@ void to_json(json &j, const Instr &i) {
     break;
   }
 }
+void to_json(json &j, const Instr &i, const Func &fn) {
+  to_fn = &fn;
+  to_vp = &fn.vp;
+
+  to_json(j, i);
+
+  to_vp = nullptr;
+  to_fn = nullptr;
+}
+json to_json(const Instr &i, const Func &fn) {
+  json j;
+  to_json(j, i, fn);
+  return j;
+}
 void to_json(json &j, const Instr *i) { to_json(j, *i); }
 void to_json(json &j, const Func &fn) {
+  to_fn = &fn;
+  to_vp = &fn.vp;
+
   j = json{{"name", fn.name}, {"args", fn.args}, {"instrs", fn.allInstrs()}};
   if (fn.ret_type)
     j["type"] = fn.ret_type;
+
+  to_vp = nullptr;
+  to_fn = nullptr;
 }
 void to_json(json &j, const Prog &p) { j = json{{"functions", p.fns}}; }
 
