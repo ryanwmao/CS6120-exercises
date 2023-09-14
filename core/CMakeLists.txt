@@ -1,4 +1,5 @@
 add_library(types ${CMAKE_CURRENT_SOURCE_DIR}/types.cpp)
+target_link_libraries(types PUBLIC Boost::boost)
 target_include_directories(types PUBLIC ${CMAKE_SOURCE_DIR})
 
 add_library(cfg ${CMAKE_CURRENT_SOURCE_DIR}/cfg.cpp)

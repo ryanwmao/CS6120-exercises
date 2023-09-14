@@ -26,6 +26,7 @@ void to_json(json &j, Label *i);
 void to_json(json &j, Effect *i);
 void to_json(json &j, Const *i);
 void to_json(json &j, Instr *i);
+void to_json(json &j, const Instr &i);
 void to_json(json &j, const Func &fn);
 void to_json(json &j, const Prog &p);
 

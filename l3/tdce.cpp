@@ -15,8 +15,8 @@ void tdce_global(bril::Func &fn) {
 
     std::unordered_set<std::string> uses;
     for (auto &bb : fn.bbs) {
-      for (const auto instr : bb->code) {
-        std::vector<std::string> *args = instr->uses();
+      for (const auto &instr : bb.code) {
+        auto args = instr.uses();
         if (!args)
           continue;
         for (const auto &arg : *args)
@@ -25,11 +25,11 @@ void tdce_global(bril::Func &fn) {
     }
 
     for (auto &bb : fn.bbs) {
-      for (auto it = bb->code.begin(); it != bb->code.end();) {
-        auto instr = *it;
-        auto dest = instr->def();
+      for (auto it = bb.code.begin(); it != bb.code.end();) {
+        auto &instr = *it;
+        auto dest = instr.def();
         if (dest && !uses.count(*dest)) {
-          it = bb->code.erase(it);
+          it = bb.code.erase(it);
           converged = false;
         } else {
           ++it;
@@ -50,7 +50,7 @@ void tdce_bb(bril::BasicBlock &bb) {
       --it;
       auto &insn = *it;
 
-      if (auto dest = insn->def()) {
+      if (auto dest = insn.def()) {
         if (dead.count(*dest)) {
           it = bb.code.erase(it);
           converged = false;
@@ -58,7 +58,7 @@ void tdce_bb(bril::BasicBlock &bb) {
         }
         dead.insert(*dest);
       }
-      if (auto args = insn->uses()) {
+      if (auto args = insn.uses()) {
         for (auto &arg : *args)
           dead.erase(arg);
       }
@@ -68,11 +68,11 @@ void tdce_bb(bril::BasicBlock &bb) {
 
 void tdce_fn(bril::Func &fn) {
   tdce_global(fn);
-  for (auto bb : fn.bbs)
-    tdce_bb(*bb);
+  for (auto &bb : fn.bbs)
+    tdce_bb(bb);
 }
 
-void tdce_prog(bril::Prog prog) {
+void tdce_prog(bril::Prog &prog) {
   for (auto &fn : prog.fns)
     tdce_fn(fn);
 }

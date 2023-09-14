@@ -106,63 +106,64 @@ void to_json(json &j, Type *const &t) {
 void to_json(json &j, Arg const &a) {
   j = json{{"name", a.name}, {"type", a.type}};
 }
-void to_json(json &j, Value *i) {
-  j = json{{"dest", i->dest}, {"op", i->op},       {"type", i->type},
-           {"args", i->args}, {"funcs", i->funcs}, {"labels", i->labels}};
-  if (!i->args.empty())
-    j.emplace("args", i->args);
-  // j["args"] = i->args;
-  if (!i->funcs.empty())
-    j["funcs"] = i->funcs;
-  if (!i->labels.empty())
-    j["labels"] = i->labels;
+void to_json(json &j, const Value &i) {
+  j = json{{"dest", i.dest}, {"op", i.op},       {"type", i.type},
+           {"args", i.args}, {"funcs", i.funcs}, {"labels", i.labels}};
+  if (!i.args.empty())
+    j.emplace("args", i.args);
+  // j["args"] = i.args;
+  if (!i.funcs.empty())
+    j["funcs"] = i.funcs;
+  if (!i.labels.empty())
+    j["labels"] = i.labels;
 }
-void to_json(json &j, Label *i) { j = json{{"label", i->name}}; }
-void to_json(json &j, Effect *i) {
-  j = json{{"op", i->op}};
-  if (!i->args.empty())
-    j.emplace("args", i->args);
-  if (!i->funcs.empty())
-    j["funcs"] = i->funcs;
-  if (!i->labels.empty())
-    j["labels"] = i->labels;
+void to_json(json &j, const Label &i) { j = json{{"label", i.name}}; }
+void to_json(json &j, const Effect &i) {
+  j = json{{"op", i.op}};
+  if (!i.args.empty())
+    j.emplace("args", i.args);
+  if (!i.funcs.empty())
+    j["funcs"] = i.funcs;
+  if (!i.labels.empty())
+    j["labels"] = i.labels;
 }
-void to_json(json &j, Const *i) {
-  j = json{{"dest", i->dest}, {"op", "const"}, {"type", i->type}};
-  switch (i->type->kind) {
+void to_json(json &j, const Const &i) {
+  j = json{{"dest", i.dest}, {"op", "const"}, {"type", i.type}};
+  switch (i.type->kind) {
   case TypeKind::Int:
-    j["value"] = i->value.int_val;
+    j["value"] = i.value.int_val;
     break;
   case TypeKind::Bool:
-    j["value"] = i->value.bool_val;
+    j["value"] = i.value.bool_val;
     break;
   case TypeKind::Float:
-    j["value"] = i->value.fp_val;
+    j["value"] = i.value.fp_val;
     break;
   case TypeKind::Char:
-    j["value"] = i->value.char_val;
+    j["value"] = i.value.char_val;
     break;
   default:
     assert(false);
     bril::unreachable();
   }
 }
-void to_json(json &j, Instr *i) {
-  switch (i->kind) {
+void to_json(json &j, const Instr &i) {
+  switch (i.kind) {
   case InstrKind::Label:
-    to_json(j, static_cast<Label *const>(i));
+    to_json(j, cast<Label>(i));
     break;
   case InstrKind::Const:
-    to_json(j, static_cast<Const *const>(i));
+    to_json(j, cast<Const>(i));
     break;
   case InstrKind::Value:
-    to_json(j, static_cast<Value *const>(i));
+    to_json(j, cast<Value>(i));
     break;
   case InstrKind::Effect:
-    to_json(j, static_cast<Effect *const>(i));
+    to_json(j, cast<Effect>(i));
     break;
   }
 }
+void to_json(json &j, const Instr *i) { to_json(j, *i); }
 void to_json(json &j, const Func &fn) {
   j = json{{"name", fn.name}, {"args", fn.args}, {"instrs", fn.allInstrs()}};
   if (fn.ret_type)

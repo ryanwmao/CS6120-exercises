@@ -1,6 +1,8 @@
 #pragma once
 
 #include "casting.hpp"
+
+#include <boost/intrusive/list.hpp>
 #include <list>
 #include <string>
 #include <vector>
@@ -50,11 +52,11 @@ struct PtrType : Type {
 
 enum class InstrKind : char { Label, Const, Value, Effect };
 
-struct Instr {
+struct Instr : public boost::intrusive::list_base_hook<> {
   const InstrKind kind;
 
-  std::vector<std::string> *uses();
-  std::string *def();
+  const std::vector<std::string> *uses() const;
+  const std::string *def() const;
 
 protected:
   Instr(const InstrKind kind_) : kind(kind_) {}
@@ -125,9 +127,11 @@ struct Effect : Instr {
   static bool classof(const Instr *t) { return t->kind == InstrKind::Effect; }
 };
 
+using InstrList = boost::intrusive::list<Instr>;
+
 // BASIC BLOCKS
 
-struct BasicBlock {
+struct BasicBlock : public boost::intrusive::list_base_hook<> {
   // serial number of basic block in the function
   int id;
   std::string name;
@@ -136,11 +140,13 @@ struct BasicBlock {
   // successors of this basic block in the cfg
   BasicBlock *exits[2] = {nullptr, nullptr};
 
-  std::list<Instr *> code;
+  InstrList code;
 
   BasicBlock(std::string &&name_) : id(-1), name(std::move(name_)) {}
   BasicBlock(int id_, std::string &&name_) : id(id_), name(std::move(name_)) {}
 };
+
+using BBList = boost::intrusive::list<BasicBlock>;
 
 // FUNCTION AND PROGRAM
 
@@ -155,9 +161,9 @@ struct Func {
   std::string name;
   Type *ret_type;
   std::vector<Arg> args;
-  std::list<BasicBlock *> bbs;
+  BBList bbs;
 
-  std::vector<Instr *> allInstrs() const;
+  std::vector<const Instr *> allInstrs() const;
 };
 
 struct Prog {
@@ -167,7 +173,7 @@ struct Prog {
 } // namespace bril
 
 namespace bril {
-inline std::vector<std::string> *Instr::uses() {
+inline const std::vector<std::string> *Instr::uses() const {
   switch (kind) {
   case bril::InstrKind::Const:
   case bril::InstrKind::Label:
@@ -179,7 +185,7 @@ inline std::vector<std::string> *Instr::uses() {
   }
 }
 
-inline std::string *Instr::def() {
+inline const std::string *Instr::def() const {
   switch (kind) {
   case bril::InstrKind::Const:
     return &cast<Const>(this)->dest;

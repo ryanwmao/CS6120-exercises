@@ -1,10 +1,11 @@
 #include "types.hpp"
 
 namespace bril {
-std::vector<Instr *> Func::allInstrs() const {
-  std::vector<Instr *> res;
+std::vector<const Instr *> Func::allInstrs() const {
+  std::vector<const Instr *> res;
   for (auto &bb : bbs) {
-    res.insert(res.end(), bb->code.begin(), bb->code.end());
+    for (auto it = bb.code.begin(); it != bb.code.end(); ++it)
+      res.push_back(&*it);
   }
   return res;
 }

@@ -19,6 +19,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(json)
 set(JSON_ImplicitConversions off)
 
+
+#########
+# BOOST #
+#########
+
+find_package(Boost REQUIRED)
+
 ####################
 # COMPILER OPTIONS #
 ####################
