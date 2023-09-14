@@ -4,6 +4,6 @@
 
 namespace bril {
 
-std::list<BasicBlock *> toCFG(std::vector<Instr *> instrs);
+std::list<BasicBlock *> toCFG(std::vector<Instr *> &instrs);
 
 } // namespace bril

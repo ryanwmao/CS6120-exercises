@@ -134,10 +134,11 @@ struct BasicBlock {
   // predecessors of this basic block in the cfg
   std::vector<BasicBlock *> entries;
   // successors of this basic block in the cfg
-  BasicBlock *exits[2];
+  BasicBlock *exits[2] = {nullptr, nullptr};
 
   std::list<Instr *> code;
 
+  BasicBlock(std::string &&name_) : id(-1), name(std::move(name_)) {}
   BasicBlock(int id_, std::string &&name_) : id(id_), name(std::move(name_)) {}
 };
 
