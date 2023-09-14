@@ -10,9 +10,7 @@ int main() {
   json j = json::parse(std::cin);
   bril::Prog prog = j;
   for (auto &fn : prog.fns) {
-    auto bbs = bril::toCFG(fn.bbs.front()->code);
-
-    for (auto &bb : bbs) {
+    for (auto &bb : fn.bbs) {
       std::cout << bb->name << std::endl;
       for (auto &instr : bb->code)
         std::cout << "\t" << json{instr} << std::endl;

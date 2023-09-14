@@ -1,5 +1,4 @@
 #include "core/casting.hpp"
-#include "core/cfg.hpp"
 #include "core/parse.hpp"
 #include "core/types.hpp"
 #include <iostream>
@@ -23,7 +22,9 @@ void tdce_global(bril::Func &fn) {
         for (const auto &arg : *args)
           uses.insert(arg);
       }
+    }
 
+    for (auto &bb : fn.bbs) {
       for (auto it = bb->code.begin(); it != bb->code.end();) {
         auto instr = *it;
         auto dest = instr->def();
@@ -67,11 +68,8 @@ void tdce_bb(bril::BasicBlock &bb) {
 
 void tdce_fn(bril::Func &fn) {
   tdce_global(fn);
-  auto bbs = toCFG(fn.bbs.front()->code);
-  for (auto &bb : bbs)
+  for (auto bb : fn.bbs)
     tdce_bb(*bb);
-
-  fn.bbs = std::move(bbs);
 }
 
 void tdce_prog(bril::Prog prog) {

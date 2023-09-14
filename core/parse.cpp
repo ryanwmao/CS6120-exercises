@@ -1,4 +1,5 @@
 #include "parse.hpp"
+#include "core/cfg.hpp"
 #include <memory>
 
 namespace bril {
@@ -76,11 +77,11 @@ void from_json(const json &j, Func &fn) {
                            type_from_json(arg.at("type")));
     }
   }
-  fn.bbs.push_back(new BasicBlock(0, "_start"));
-  auto &bb = *fn.bbs.back();
+  std::vector<Instr *> instrs;
   for (const auto &instr : j.at("instrs")) {
-    bb.code.push_back(instr.template get<Instr *>());
+    instrs.push_back(instr.template get<Instr *>());
   }
+  fn.bbs = toCFG(instrs);
 }
 void from_json(const json &j, Prog &p) { j.at("functions").get_to(p.fns); }
 void to_json(json &j, Type *const &t) {
@@ -121,7 +122,6 @@ void to_json(json &j, Effect *i) {
   j = json{{"op", i->op}};
   if (!i->args.empty())
     j.emplace("args", i->args);
-  //   j["args"] = i->args;
   if (!i->funcs.empty())
     j["funcs"] = i->funcs;
   if (!i->labels.empty())

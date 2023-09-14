@@ -12,7 +12,7 @@ bool is_term(Instr *i) {
   return false;
 }
 
-std::list<BasicBlock *> toCFG(std::list<Instr *> instrs) {
+std::list<BasicBlock *> toCFG(std::vector<Instr *> instrs) {
   std::list<BasicBlock *> res;
   res.push_back(new BasicBlock(0, "_bb.0"));
   int bb_cnt = 1;
