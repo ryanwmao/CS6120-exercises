@@ -35,17 +35,6 @@ endif ()
 target_compile_options(compiler_opts INTERFACE $<$<CONFIG:Debug>:-DETAC_DEBUG>)
 
 
-###########
-# COMMON #
-##########
-
-add_library(cfg-lib ${CMAKE_CURRENT_SOURCE_DIR}/cfg.cpp)
-target_link_libraries(cfg-lib PUBLIC nlohmann_json::nlohmann_json PRIVATE compiler_opts)
-target_include_directories(cfg-lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-
-add_executable(cfg-main ${CMAKE_CURRENT_SOURCE_DIR}/cfg.cpp)
-target_link_libraries(cfg-main cfg-lib)
-
 add_subdirectory(core)
 add_subdirectory(coretest)
 add_subdirectory(l3)

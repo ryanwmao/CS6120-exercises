@@ -1,5 +1,6 @@
 #pragma once
 
+#include "casting.hpp"
 #include <list>
 #include <string>
 #include <vector>
@@ -20,23 +21,29 @@ protected:
 
 struct IntType : Type {
   IntType() : Type(TypeKind::Int) {}
+  static bool classof(const Type *t) { return t->kind == TypeKind::Int; }
 };
 
 struct BoolType : Type {
   BoolType() : Type(TypeKind::Bool) {}
+  static bool classof(const Type *t) { return t->kind == TypeKind::Bool; }
 };
 
 struct FloatType : Type {
   FloatType() : Type(TypeKind::Float) {}
+  static bool classof(const Type *t) { return t->kind == TypeKind::Float; }
 };
 
 struct CharType : Type {
   CharType() : Type(TypeKind::Char) {}
+  static bool classof(const Type *t) { return t->kind == TypeKind::Char; }
 };
 
 struct PtrType : Type {
   PtrType(Type *type_) : Type(TypeKind::Ptr), type(type_) {}
   Type *type;
+
+  static bool classof(const Type *t) { return t->kind == TypeKind::Ptr; }
 };
 
 // INSTRUCTION
@@ -45,6 +52,9 @@ enum class InstrKind : char { Label, Const, Value, Effect };
 
 struct Instr {
   const InstrKind kind;
+
+  std::vector<std::string> *uses();
+  std::string *def();
 
 protected:
   Instr(const InstrKind kind_) : kind(kind_) {}
@@ -55,6 +65,8 @@ struct Label : Instr {
 
   Label(std::string &&name_)
       : Instr(InstrKind::Label), name(std::move(name_)) {}
+
+  static bool classof(const Instr *t) { return t->kind == InstrKind::Label; }
 };
 
 struct Const : Instr {
@@ -83,6 +95,8 @@ struct Const : Instr {
   CONST_CONS(double)
   CONST_CONS(char)
 #undef CONST_CONS
+
+  static bool classof(const Instr *t) { return t->kind == InstrKind::Const; }
 };
 
 struct Value : Instr {
@@ -96,6 +110,8 @@ struct Value : Instr {
   Value(std::string &&dest_, Type *type_, std::string &&op_)
       : Instr(InstrKind::Value), dest(std::move(dest_)), type(type_),
         op(std::move(op_)) {}
+
+  static bool classof(const Instr *t) { return t->kind == InstrKind::Value; }
 };
 
 struct Effect : Instr {
@@ -105,6 +121,24 @@ struct Effect : Instr {
   std::vector<std::string> funcs;
 
   Effect(std::string &&op_) : Instr(InstrKind::Effect), op(std::move(op_)) {}
+
+  static bool classof(const Instr *t) { return t->kind == InstrKind::Effect; }
+};
+
+// BASIC BLOCKS
+
+struct BasicBlock {
+  // serial number of basic block in the function
+  int id;
+  std::string name;
+  // predecessors of this basic block in the cfg
+  std::vector<BasicBlock *> entries;
+  // successors of this basic block in the cfg
+  BasicBlock *exits[2];
+
+  std::list<Instr *> code;
+
+  BasicBlock(int id_, std::string &&name_) : id(id_), name(std::move(name_)) {}
 };
 
 // FUNCTION AND PROGRAM
@@ -120,11 +154,39 @@ struct Func {
   std::string name;
   Type *ret_type;
   std::vector<Arg> args;
-  std::list<Instr *> instrs;
+  std::list<BasicBlock *> bbs;
+
+  std::vector<Instr *> allInstrs() const;
 };
 
 struct Prog {
   std::vector<Func> fns;
 };
 
+} // namespace bril
+
+namespace bril {
+inline std::vector<std::string> *Instr::uses() {
+  switch (kind) {
+  case bril::InstrKind::Const:
+  case bril::InstrKind::Label:
+    return nullptr;
+  case bril::InstrKind::Effect:
+    return &cast<Effect>(this)->args;
+  case bril::InstrKind::Value:
+    return &cast<Value>(this)->args;
+  }
+}
+
+inline std::string *Instr::def() {
+  switch (kind) {
+  case bril::InstrKind::Const:
+    return &cast<Const>(this)->dest;
+  case bril::InstrKind::Value:
+    return &cast<Value>(this)->dest;
+  case bril::InstrKind::Label:
+  case bril::InstrKind::Effect:
+    return nullptr;
+  }
+}
 } // namespace bril

@@ -1,4 +1,5 @@
 #include "parse.hpp"
+#include <memory>
 
 namespace bril {
 
@@ -69,12 +70,16 @@ void from_json(const json &j, Func &fn) {
   j.at("name").get_to(fn.name);
   if (j.contains("type"))
     j.at("type").get_to(fn.ret_type);
-  for (const auto &arg : j.at("args")) {
-    fn.args.emplace_back(arg.at("name").template get<std::string>(),
-                         type_from_json(arg.at("type")));
+  if (j.contains("args")) {
+    for (const auto &arg : j.at("args")) {
+      fn.args.emplace_back(arg.at("name").template get<std::string>(),
+                           type_from_json(arg.at("type")));
+    }
   }
+  fn.bbs.push_back(new BasicBlock(0, "_start"));
+  auto &bb = *fn.bbs.back();
   for (const auto &instr : j.at("instrs")) {
-    fn.instrs.push_back(instr.template get<Instr *>());
+    bb.code.push_back(instr.template get<Instr *>());
   }
 }
 void from_json(const json &j, Prog &p) { j.at("functions").get_to(p.fns); }
@@ -159,7 +164,7 @@ void to_json(json &j, Instr *i) {
   }
 }
 void to_json(json &j, const Func &fn) {
-  j = json{{"name", fn.name}, {"args", fn.args}, {"instrs", fn.instrs}};
+  j = json{{"name", fn.name}, {"args", fn.args}, {"instrs", fn.allInstrs()}};
   if (fn.ret_type)
     j["type"] = fn.ret_type;
 }

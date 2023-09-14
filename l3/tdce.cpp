@@ -1,4 +1,7 @@
-#include "cfg.hpp"
+#include "core/casting.hpp"
+#include "core/cfg.hpp"
+#include "core/parse.hpp"
+#include "core/types.hpp"
 #include <iostream>
 #include <list>
 #include <nlohmann/json.hpp>
@@ -6,82 +9,80 @@
 
 using json = nlohmann::json;
 
-void tdce_global(std::list<json> &instrs) {
+void tdce_global(bril::Func &fn) {
   bool converged = false;
   while (!converged) {
     converged = true;
 
     std::unordered_set<std::string> uses;
-    for (const auto &instr : instrs) {
-      if (!instr.contains("args"))
-        continue;
-      for (const auto &arg : instr["args"]) {
-        uses.insert(arg);
+    for (auto &bb : fn.bbs) {
+      for (const auto instr : bb->code) {
+        std::vector<std::string> *args = instr->uses();
+        if (!args)
+          continue;
+        for (const auto &arg : *args)
+          uses.insert(arg);
       }
-    }
 
-    for (auto it = instrs.begin(); it != instrs.end();) {
-      auto &instr = *it;
-      if (instr.contains("dest") &&
-          !uses.count(instr["dest"].template get<std::string>())) {
-        it = instrs.erase(it);
-        converged = false;
-      } else {
-        ++it;
+      for (auto it = bb->code.begin(); it != bb->code.end();) {
+        auto instr = *it;
+        auto dest = instr->def();
+        if (dest && !uses.count(*dest)) {
+          it = bb->code.erase(it);
+          converged = false;
+        } else {
+          ++it;
+        }
       }
     }
   }
 }
 
-void tdce_bb(BasicBlock &bb) {
+void tdce_bb(bril::BasicBlock &bb) {
   bool converged = false;
   while (!converged) {
     converged = true;
     std::unordered_set<std::string> dead;
 
-    auto it = bb.instrs.end();
-    while (it != bb.instrs.begin()) {
+    auto it = bb.code.end();
+    while (it != bb.code.begin()) {
       --it;
       auto &insn = *it;
 
-      if (insn.contains("dest")) {
-        auto dest = insn["dest"].template get<std::string>();
-        if (dead.count(dest)) {
-          it = bb.instrs.erase(it);
+      if (auto dest = insn->def()) {
+        if (dead.count(*dest)) {
+          it = bb.code.erase(it);
           converged = false;
           continue;
         }
-        dead.insert(dest);
+        dead.insert(*dest);
       }
-      if (insn.contains("args")) {
-        for (auto &arg : insn["args"])
-          dead.erase(arg.template get<std::string>());
+      if (auto args = insn->uses()) {
+        for (auto &arg : *args)
+          dead.erase(arg);
       }
     }
   }
 }
 
-void tdce_fn(json &fn) {
-  auto instrs = fn["instrs"].template get<std::list<json>>();
-  tdce_global(instrs);
-  auto bbs = form_bbs(instrs);
+void tdce_fn(bril::Func &fn) {
+  tdce_global(fn);
+  auto bbs = toCFG(fn.bbs.front()->code);
   for (auto &bb : bbs)
-    tdce_bb(bb);
+    tdce_bb(*bb);
 
-  std::list<json> new_instrs;
-  for (auto &bb : bbs)
-    new_instrs.insert(new_instrs.end(), bb.instrs.begin(), bb.instrs.end());
-
-  fn["instrs"] = new_instrs;
+  fn.bbs = std::move(bbs);
 }
 
-void tdce_prog(json &prog) {
-  for (auto &fn : prog["functions"])
+void tdce_prog(bril::Prog prog) {
+  for (auto &fn : prog.fns)
     tdce_fn(fn);
 }
 
 int main() {
-  json prog = json::parse(std::cin);
+  json j = json::parse(std::cin);
+  bril::Prog prog = j;
   tdce_prog(prog);
-  std::cout << prog << std::endl;
+  json out = prog;
+  std::cout << out << std::endl;
 }
