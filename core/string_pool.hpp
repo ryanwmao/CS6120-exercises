@@ -24,7 +24,7 @@ public:
   std::string_view get(StringRef ref) const;
 };
 
-using VarRef = unsigned int;
+using VarRef = int;
 auto constexpr const kTempRefMax = UINT_MAX;
 
 // manages temps: holding their names, creating fresh & SSA temps

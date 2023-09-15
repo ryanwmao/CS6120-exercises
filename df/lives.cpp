@@ -8,6 +8,8 @@ namespace bril {
 
 using Result = Lives::Result;
 
+#define TO_UINT static_cast<unsigned int>
+
 // represents the dataflow value for a bb
 struct DFValue {
   BasicBlock *bb;
@@ -19,9 +21,9 @@ struct DFValue {
 
   void updateIn(std::vector<DFValue> &vals) {
     if (bb->exits[0]) {
-      out = vals[static_cast<size_t>(bb->exits[0]->id)].in;
+      out = vals[TO_UINT(bb->exits[0]->id)].in;
       if (bb->exits[1])
-        out |= vals[static_cast<size_t>(bb->exits[1]->id)].in;
+        out |= vals[TO_UINT(bb->exits[1]->id)].in;
     }
   }
 
@@ -41,7 +43,7 @@ struct DFValue {
   }
 };
 
-size_t toSizeT(VarRef reg) { return static_cast<size_t>(reg); }
+size_t toSizeT(VarRef reg) { return TO_UINT(reg); }
 
 // initialize the use/def bitsets and the in/out bitsets for a df value
 void initDFValue(DFValue &v) {
@@ -58,12 +60,12 @@ void initDFValue(DFValue &v) {
   for (auto it = bb.code.rbegin(); it != bb.code.rend(); ++it) {
     // defs processed before uses
     if (auto def = it->def()) {
-      v.defs.set(*def);
-      v.uses.reset(*def);
+      v.defs.set(TO_UINT(*def));
+      v.uses.reset(TO_UINT(*def));
     }
     if (auto uses = it->uses()) {
       for (auto r : *uses) {
-        v.uses.set(r);
+        v.uses.set(TO_UINT(r));
       }
     }
   }
@@ -79,7 +81,7 @@ std::vector<Result> Lives::analyze(Func &fn) {
   std::deque<size_t> wl; // worklist
   for (auto &bb : fn.bbs) {
     values.emplace_back(&bb, nvars);
-    wl.push_back(static_cast<size_t>(bb.id));
+    wl.push_back(TO_UINT(bb.id));
 
     // initialize the bitsets for the basic block
     initDFValue(values.back());
@@ -91,12 +93,12 @@ std::vector<Result> Lives::analyze(Func &fn) {
   while (!wl.empty()) {
     auto &n = values[wl.front()];
     wl.pop_front();
-    in_wl.reset(static_cast<size_t>(n.bb->id));
+    in_wl.reset(TO_UINT(n.bb->id));
     // if true, more work to do
     if (n.iter(values, temp)) {
       // add bb's entries to worklist if not already there
       for (auto &e : n.bb->entries) {
-        auto e_id = static_cast<size_t>(e->id);
+        auto e_id = TO_UINT(e->id);
         if (!in_wl.test_set(e_id)) {
           wl.push_back(e_id);
         }
