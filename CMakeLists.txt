@@ -44,4 +44,5 @@ target_compile_options(compiler_opts INTERFACE $<$<CONFIG:Debug>:-DETAC_DEBUG>)
 
 add_subdirectory(core)
 add_subdirectory(coretest)
+add_subdirectory(df)
 add_subdirectory(l3)
