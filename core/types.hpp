@@ -133,6 +133,8 @@ using InstrList = boost::intrusive::list<Instr>;
 
 // BASIC BLOCKS
 
+struct DomInfo;
+
 struct BasicBlock : public boost::intrusive::list_base_hook<> {
   // serial number of basic block in the function
   int id;
@@ -141,6 +143,8 @@ struct BasicBlock : public boost::intrusive::list_base_hook<> {
   std::vector<BasicBlock *> entries;
   // successors of this basic block in the cfg
   BasicBlock *exits[2] = {nullptr, nullptr};
+  // dominator info
+  DomInfo *dom_info;
 
   InstrList code;
 
