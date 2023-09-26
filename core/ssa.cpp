@@ -77,36 +77,39 @@ void ToSSA::idf(unsigned int var, boost::dynamic_bitset<> &temp,
 
 void ToSSA::removeDeadPhis(unsigned int var, boost::dynamic_bitset<> &phis) {
   auto &vi = var_infos_[var];
+  // remove phis when there's a def before any use in a bb
   auto kills = vi.defs - vi.livein;
   phis -= kills;
-  //   if (nbbs_ > 1)
-  //     std::cout << fn_.vp.strOf(TO_INT(var)) << " " << var << " " << vi.defs
-  //               << " " << vi.livein << " " << phis << " " << std::endl;
-  //   if (var == 2 && nbbs_ > 3) {
-  //     std::cout << "hi" << std::endl;
-  //   }
 
   if (phis.empty())
     return;
 
+  // set to all defs + phis
   kills = vi.defs;
   kills |= phis;
 
+  // now we compute only the live phis by propagating livein information
+  // when processing a bb that is livein, we look for its nearest dominating def
+  // if this is a phi, it is live, and if we haven't already marked it live,
+  // we process its predecessors and mark them as livein
   boost::dynamic_bitset<> live(nbbs_);
+  // initialize worklist to bbs that are livein
   std::queue<unsigned int> wl;
   for (unsigned int i = 0; i < nbbs_; i++)
     if (vi.livein.test(i))
       wl.push(i);
+
   while (!wl.empty()) {
     auto bbi = wl.front();
     auto &bb = *fn_.bbsv[bbi];
     wl.pop();
 
+    // find the dominating def
     unsigned int p;
     if (phis.test(bbi)) {
       p = bbi;
     } else {
-      // find first def that dominates this use by traversing dom tree
+      // find first def/phi that dominates this use by traversing dom tree
       auto cur = bb.dom_info->idom;
       while (!kills.test(TO_UINT(cur->id)))
         cur = cur->dom_info->idom;
@@ -119,6 +122,7 @@ void ToSSA::removeDeadPhis(unsigned int var, boost::dynamic_bitset<> &phis) {
     if (live.test_set(p))
       continue;
 
+    // set predecessors as livein
     auto &pbb = *fn_.bbsv[p];
     for (auto pred : pbb.entries) {
       auto pid = TO_UINT(pred->id);
@@ -144,9 +148,12 @@ void ToSSA::addPhiNodes() {
     phis.reset();
     temp.reset();
 
+    // perform iterated dominance frontier to find places to put phis
     idf(var, temp, phis);
+    // remove obivously dead phis
     removeDeadPhis(var, phis);
 
+    // actually place the phi nodes
     for (unsigned int bbi = 0; bbi < nbbs_; bbi++) {
       if (phis.test(bbi)) {
         auto &bb = *fn_.bbsv[bbi];
@@ -158,6 +165,7 @@ void ToSSA::addPhiNodes() {
 }
 
 VarRef ToSSA::getNewName(VarRef var) {
+  // returns the currently reaching def name for var
   auto &s = name_stacks_[var];
   if (s.empty()) {
     s.push(var);
@@ -167,6 +175,7 @@ VarRef ToSSA::getNewName(VarRef var) {
 }
 
 VarRef ToSSA::genNewName(VarRef var) {
+  // when there is a def; creates a new ssa name for var and sets it reaching
   auto new_name = fn_.vp.nextVarOf(var);
   name_stacks_[var].push(new_name);
   name_logs_->push_back(var);
@@ -207,7 +216,7 @@ void ToSSA::rename(BasicBlock &bb) {
   for (auto succ : bb.dom_info->succs)
     rename(*succ);
 
-  // pop all pushed names
+  // pop all pushed names (restoring reaching defs before this bb)
   for (auto i = log_pos; i < name_logs_->size(); i++) {
     name_stacks_[(*name_logs_)[i]].pop();
   }
