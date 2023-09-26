@@ -99,7 +99,7 @@ struct Const : Instr {
       : Instr(InstrKind::Const), dest(dest_), type(type_), value(val_) {}
 
   CONST_CONS(long long)
-  CONST_CONS(float)
+  CONST_CONS(double)
   CONST_CONS(bool)
   CONST_CONS(char)
 #undef CONST_CONS
