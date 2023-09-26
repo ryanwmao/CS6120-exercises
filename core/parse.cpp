@@ -31,7 +31,7 @@ Const *const_from_json(const json &j) {
   case TypeKind::Bool:
     return new Const(dest, t, j.at("value").template get<bool>());
   case TypeKind::Int:
-    return new Const(dest, t, j.at("value").template get<int>());
+    return new Const(dest, t, j.at("value").template get<long long>());
   case TypeKind::Float:
     return new Const(dest, t, j.at("value").template get<float>());
   case TypeKind::Char:

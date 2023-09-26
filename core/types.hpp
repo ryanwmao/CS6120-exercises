@@ -83,12 +83,12 @@ struct Const : Instr {
   Type *type;
   // based off of type
   union Literal {
-    int int_val;
+    long long int_val;
     bool bool_val;
     double fp_val;
     char char_val;
 
-    Literal(int val) : int_val(val) {}
+    Literal(long long val) : int_val(val) {}
     Literal(bool val) : bool_val(val) {}
     Literal(double val) : fp_val(val) {}
     Literal(char val) : char_val(val) {}
@@ -98,9 +98,9 @@ struct Const : Instr {
   Const(VarRef dest_, Type *type_, cpp_type val_)                              \
       : Instr(InstrKind::Const), dest(dest_), type(type_), value(val_) {}
 
-  CONST_CONS(int)
+  CONST_CONS(long long)
   CONST_CONS(float)
-  CONST_CONS(double)
+  CONST_CONS(bool)
   CONST_CONS(char)
 #undef CONST_CONS
 
