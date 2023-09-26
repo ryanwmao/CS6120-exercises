@@ -23,6 +23,12 @@ void ToSSA::computeVarInfos() {
     vi.livein = boost::dynamic_bitset<>(nbbs_);
   }
 
+  for (auto &arg : fn_.args) {
+    auto &vi = var_infos_[TO_UINT(arg.name)];
+    vi.defs.set(0);
+    vi.type = arg.type;
+  }
+
   for (auto &bb : bbs_) {
     auto bb_id = TO_UINT(bb.id);
     for (auto &instr : bb.code) {
@@ -30,7 +36,7 @@ void ToSSA::computeVarInfos() {
       if (auto uses = instr.uses()) {
         for (auto use : *uses) {
           auto uuse = TO_UINT(use);
-          auto vi = var_infos_[uuse];
+          auto &vi = var_infos_[uuse];
           if (!vi.defs.test(bb_id)) {
             vi.livein.set(bb_id);
           }
@@ -46,8 +52,10 @@ void ToSSA::computeVarInfos() {
   }
 }
 
-void ToSSA::idf(unsigned int var, boost::dynamic_bitset<> &phis) {
+void ToSSA::idf(unsigned int var, boost::dynamic_bitset<> &temp,
+                boost::dynamic_bitset<> &phis) {
   auto &vi = var_infos_[var];
+  temp = vi.defs;
   std::queue<unsigned int> wl;
   for (unsigned int bb = 0; bb < nbbs_; bb++)
     if (vi.defs.test(bb))
@@ -61,17 +69,84 @@ void ToSSA::idf(unsigned int var, boost::dynamic_bitset<> &phis) {
       if (!bb.dom_info->dfront.test(df) || phis.test(df))
         continue;
       phis.set(df);
-      if (!vi.defs.test_set(df))
+      if (!temp.test_set(df))
         wl.push(df);
     }
   }
 }
 
+void ToSSA::removeDeadPhis(unsigned int var, boost::dynamic_bitset<> &phis) {
+  auto &vi = var_infos_[var];
+  auto kills = vi.defs - vi.livein;
+  phis -= kills;
+  //   if (nbbs_ > 1)
+  //     std::cout << fn_.vp.strOf(TO_INT(var)) << " " << var << " " << vi.defs
+  //               << " " << vi.livein << " " << phis << " " << std::endl;
+  //   if (var == 2 && nbbs_ > 3) {
+  //     std::cout << "hi" << std::endl;
+  //   }
+
+  if (phis.empty())
+    return;
+
+  kills = vi.defs;
+  kills |= phis;
+
+  boost::dynamic_bitset<> live(nbbs_);
+  std::queue<unsigned int> wl;
+  for (unsigned int i = 0; i < nbbs_; i++)
+    if (vi.livein.test(i))
+      wl.push(i);
+  while (!wl.empty()) {
+    auto bbi = wl.front();
+    auto &bb = *fn_.bbsv[bbi];
+    wl.pop();
+
+    unsigned int p;
+    if (phis.test(bbi)) {
+      p = bbi;
+    } else {
+      // find first def that dominates this use by traversing dom tree
+      auto cur = bb.dom_info->idom;
+      while (!kills.test(TO_UINT(cur->id)))
+        cur = cur->dom_info->idom;
+      p = TO_UINT(cur->id);
+
+      if (!phis.test(p))
+        continue;
+    }
+
+    if (live.test_set(p))
+      continue;
+
+    auto &pbb = *fn_.bbsv[p];
+    for (auto pred : pbb.entries) {
+      auto pid = TO_UINT(pred->id);
+      // already added to the wl
+      if (vi.livein.test(pid))
+        continue;
+      // if already deffed, shouldn't check
+      if (vi.defs.test(pid))
+        continue;
+
+      // add to wl and mark as livein
+      vi.livein.set(pid);
+      wl.push(pid);
+    }
+  }
+
+  phis = live;
+}
+
 void ToSSA::addPhiNodes() {
-  boost::dynamic_bitset<> phis(nbbs_);
+  boost::dynamic_bitset<> phis(nbbs_), temp(nbbs_);
   for (unsigned int var = 0; var < nvars_; var++) {
     phis.reset();
-    idf(var, phis);
+    temp.reset();
+
+    idf(var, temp, phis);
+    removeDeadPhis(var, phis);
+
     for (unsigned int bbi = 0; bbi < nbbs_; bbi++) {
       if (phis.test(bbi)) {
         auto &bb = *fn_.bbsv[bbi];

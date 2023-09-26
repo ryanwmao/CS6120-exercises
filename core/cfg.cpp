@@ -18,6 +18,7 @@ std::unordered_map<std::string, BasicBlock *> *bb_map = nullptr;
 
 void formBBs(std::vector<Instr *> &instrs) {
   auto cur = new BasicBlock(0, "_bb.0");
+  cur->label = new Label("_bb.0");
   cur_bbs->push_back(*cur);
   int bb_cnt = 1;
   for (auto &instr : instrs) {

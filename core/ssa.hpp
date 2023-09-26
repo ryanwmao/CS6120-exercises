@@ -39,7 +39,10 @@ public:
   void computeVarInfos();
 
   // compute the iterated dominance frontier for var and put the result in phis
-  void idf(unsigned int var, boost::dynamic_bitset<> &phis);
+  void idf(unsigned int var, boost::dynamic_bitset<> &temp,
+           boost::dynamic_bitset<> &phis);
+  // remove dead phis; that is, phis who are never used
+  void removeDeadPhis(unsigned int var, boost::dynamic_bitset<> &phis);
   // add phi nodes to the CFG. Call after dominanceTree() and findDefs() have
   // been computed
   void addPhiNodes();
