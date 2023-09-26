@@ -10,4 +10,7 @@ add_library(parse ${CMAKE_CURRENT_SOURCE_DIR}/parse.cpp)
 target_link_libraries(parse PUBLIC types nlohmann_json::nlohmann_json PRIVATE compiler_opts cfg)
 
 add_library(dom ${CMAKE_CURRENT_SOURCE_DIR}/dom.cpp)
-target_link_libraries(dom PUBLIC types nlohmann_json::nlohmann_json PRIVATE compiler_opts)
+target_link_libraries(dom PUBLIC types Boost::boost PRIVATE compiler_opts)
+
+add_library(ssa ${CMAKE_CURRENT_SOURCE_DIR}/ssa.cpp)
+target_link_libraries(ssa PUBLIC types Boost::boost PRIVATE compiler_opts dom)

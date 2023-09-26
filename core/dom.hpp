@@ -24,8 +24,6 @@ class DomAnalysis {
   unsigned int n_;
   BasicBlock **bbsa_;
 
-  boost::dynamic_bitset<> *vis_;
-
   void domFrontHelper(BasicBlock &);
 
 public:

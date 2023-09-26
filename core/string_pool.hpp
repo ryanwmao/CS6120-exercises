@@ -32,7 +32,7 @@ class VarPool {
   std::unordered_map<StringRef, VarRef> name_to_id_;
   std::vector<StringRef> id_to_name_;
   StringPool *sp_;
-  // maps from a ref to its representative (without the prefix)
+  // maps from a ref to its representative (without the suffix)
   std::vector<VarRef> ref_to_rep_;
   // maps from a ref to the number of its latest
   std::vector<size_t> ref_to_suffix_;
@@ -49,6 +49,7 @@ public:
   VarRef freshVar();
   VarRef varRefOf(StringRef name);
   template <typename Str> VarRef varRefOf(Str &&name);
+  VarRef origRefOf(VarRef name);
 
   size_t nvars() const { return id_to_name_.size(); }
 };
@@ -125,6 +126,10 @@ inline VarRef VarPool::freshVar() {
   ref_to_rep_.push_back(static_cast<VarRef>(id));
   ref_to_suffix_.emplace_back();
   return static_cast<VarRef>(id);
+}
+
+inline VarRef VarPool::origRefOf(VarRef name) {
+  return ref_to_rep_[static_cast<unsigned>(name)];
 }
 
 } // namespace bril

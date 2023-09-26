@@ -62,6 +62,9 @@ struct Instr : public boost::intrusive::list_base_hook<> {
   const VarRef *def() const;
   VarRef *def();
 
+  const Type *const *type() const;
+  Type **type();
+
 protected:
   Instr(const InstrKind kind_) : kind(kind_) {}
 };
@@ -146,6 +149,11 @@ struct BasicBlock : public boost::intrusive::list_base_hook<> {
   // dominator info
   DomInfo *dom_info;
 
+  // potentially contains a label that begins this basic block
+  Label *label = nullptr;
+  // contains all phi nodes
+  InstrList phis;
+  // contains instructions
   InstrList code;
 
   BasicBlock(std::string &&name_) : id(-1), name(std::move(name_)) {}
@@ -168,11 +176,14 @@ struct Func {
   Type *ret_type;
   std::vector<Arg> args;
   BBList bbs;
+  std::unique_ptr<BasicBlock *[]> bbsv;
 
   StringPool *sp;
   VarPool vp;
 
   std::vector<const Instr *> allInstrs() const;
+  void populateBBsV();
+  void deleteBBsV();
 
   Func() : sp(new StringPool()), vp(*sp) {}
 };
@@ -213,5 +224,20 @@ inline const VarRef *Instr::def() const {
 }
 inline VarRef *Instr::def() {
   return const_cast<VarRef *>((const_cast<const Instr *>(this)->def()));
+}
+
+inline const Type *const *Instr::type() const {
+  switch (kind) {
+  case bril::InstrKind::Const:
+    return &cast<Const>(this)->type;
+  case bril::InstrKind::Value:
+    return &cast<Value>(this)->type;
+  case bril::InstrKind::Label:
+  case bril::InstrKind::Effect:
+    return nullptr;
+  }
+}
+inline Type **Instr::type() {
+  return const_cast<Type **>((const_cast<const Instr *>(this)->type()));
 }
 } // namespace bril

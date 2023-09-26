@@ -12,3 +12,6 @@ target_link_libraries(rdefs-main PRIVATE rdefs nlohmann_json::nlohmann_json comp
 
 add_executable(dom-main ${CMAKE_CURRENT_SOURCE_DIR}/dom_main.cpp)
 target_link_libraries(dom-main PRIVATE dom nlohmann_json::nlohmann_json compiler_opts parse)
+
+add_executable(ssa-main ${CMAKE_CURRENT_SOURCE_DIR}/ssa_main.cpp)
+target_link_libraries(ssa-main PRIVATE ssa nlohmann_json::nlohmann_json compiler_opts parse)

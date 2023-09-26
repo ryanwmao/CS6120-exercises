@@ -1,7 +1,7 @@
 #include "dom.hpp"
 
 #include "types.hpp"
-#include <iostream>
+
 #include <queue>
 #include <unordered_set>
 
@@ -242,39 +242,31 @@ void domTreeGV(Func &fn, std::ostream &os) {
   os << "}\n";
 }
 
-void DomAnalysis::computeDomFront() {
-  vis_ = new boost::dynamic_bitset<>(n_);
-  domFrontHelper(*bbsa_[0]);
-  delete vis_;
-}
+void DomAnalysis::computeDomFront() { domFrontHelper(*bbsa_[0]); }
 
 void DomAnalysis::domFrontHelper(BasicBlock &bb) {
-  if (!vis_->test(TO_UINT(bb.id))) {
-    auto &df_n = bb.dom_info->dfront;
+  auto &df_n = bb.dom_info->dfront;
 
-    // {n' | n ≻ n'}
-    for (auto exit : bb.exits) {
-      if (!exit)
-        break;
-      df_n.set(TO_UINT(exit->id));
-    }
+  // {n' | n ≻ n'}
+  for (auto exit : bb.exits) {
+    if (!exit)
+      break;
+    df_n.set(TO_UINT(exit->id));
+  }
 
-    // U_{n idom c} DF[c]
-    for (auto bb2 : bb.dom_info->succs) {
-      domFrontHelper(*bb2);
-      df_n |= bb2->dom_info->dfront;
-    }
+  // U_{n idom c} DF[c]
+  for (auto bb2 : bb.dom_info->succs) {
+    domFrontHelper(*bb2);
+    df_n |= bb2->dom_info->dfront;
+  }
 
-    // {n' | n dom n'}
-    for (unsigned int i = 0; i < n_; i++) {
-      if (!df_n.test(i))
-        continue;
-      auto front = bbsa_[i];
-      if (front->dom_info->dom_by.test(TO_UINT(bb.id)))
-        df_n.reset(i);
-    }
-
-    vis_->set(TO_UINT(bb.id));
+  // {n' | n dom n'}
+  for (unsigned int i = 0; i < n_; i++) {
+    if (!df_n.test(i) || i == TO_UINT(bb.id))
+      continue;
+    auto front = bbsa_[i];
+    if (front->dom_info->dom_by.test(TO_UINT(bb.id)))
+      df_n.reset(i);
   }
 }
 

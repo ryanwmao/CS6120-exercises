@@ -23,9 +23,11 @@ void formBBs(std::vector<Instr *> &instrs) {
   for (auto &instr : instrs) {
     if (auto label = dyn_cast<Label>(instr)) {
       cur = new BasicBlock(bb_cnt, std::string(label->name));
+      cur->label = label;
       cur_bbs->push_back(*cur);
       bb_map->emplace(std::make_pair(label->name, &cur_bbs->back()));
       bb_cnt++;
+      continue;
     }
     cur->code.push_back(*instr);
     if (is_term(instr)) {
@@ -39,10 +41,13 @@ void formBBs(std::vector<Instr *> &instrs) {
 void deleteEmptyBBs() {
   for (auto it = cur_bbs->begin(); it != cur_bbs->end();) {
     auto &bb = *it;
-    if (bb.code.empty())
+    if (bb.code.empty() && !bb.label) {
       it = cur_bbs->erase(it);
-    else
-      ++it;
+      continue;
+    }
+    if (!bb.label)
+      bb.label = new Label(std::string(bb.name));
+    ++it;
   }
 }
 
