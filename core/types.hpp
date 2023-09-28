@@ -65,6 +65,9 @@ struct Instr : public boost::intrusive::list_base_hook<> {
   const Type *const *type() const;
   Type **type();
 
+  bool isJump() const;
+  bool isPhi() const;
+
 protected:
   Instr(const InstrKind kind_) : kind(kind_) {}
 };
@@ -239,5 +242,18 @@ inline const Type *const *Instr::type() const {
 }
 inline Type **Instr::type() {
   return const_cast<Type **>((const_cast<const Instr *>(this)->type()));
+}
+
+inline bool Instr::isJump() const {
+  if (auto eff = dyn_cast<Effect>(this)) {
+    return eff->op == "jmp" || eff->op == "br";
+  }
+  return false;
+}
+
+inline bool Instr::isPhi() const {
+  if (auto eff = dyn_cast<Value>(this))
+    return eff->op == "phi";
+  return false;
 }
 } // namespace bril

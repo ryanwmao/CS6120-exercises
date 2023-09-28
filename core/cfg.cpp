@@ -3,6 +3,7 @@
 #include "casting.hpp"
 #include "types.hpp"
 
+#include <iostream>
 #include <unordered_map>
 
 namespace bril {
@@ -18,7 +19,6 @@ std::unordered_map<std::string, BasicBlock *> *bb_map = nullptr;
 
 void formBBs(std::vector<Instr *> &instrs) {
   auto cur = new BasicBlock(0, "_bb.0");
-  cur->label = new Label("_bb.0");
   cur_bbs->push_back(*cur);
   int bb_cnt = 1;
   for (auto &instr : instrs) {
@@ -30,7 +30,12 @@ void formBBs(std::vector<Instr *> &instrs) {
       bb_cnt++;
       continue;
     }
-    cur->code.push_back(*instr);
+
+    if (instr->isPhi())
+      cur->phis.push_back(*instr);
+    else
+      cur->code.push_back(*instr);
+
     if (is_term(instr)) {
       cur = new BasicBlock(bb_cnt, "_bb." + std::to_string(bb_cnt));
       cur_bbs->push_back(*cur);
@@ -80,6 +85,29 @@ void connectBBs() {
 
     bb.exits[0] = &*c;
     bb.exits[0]->entries.push_back(&bb);
+  }
+
+  // insert empty starting block
+  if (cur_bbs->empty()) {
+    cur_bbs->push_back(*new BasicBlock("_bb.0"));
+    return;
+  }
+  auto &first = cur_bbs->front();
+  // need to start with a block with no predecessors
+  //   std::cout << first.name << first.entries.size() << std::endl;
+  if (!first.entries.empty()) {
+    assert(first.label != nullptr);
+    auto &start = *new BasicBlock("_bb.0");
+    start.label = new Label("_bb.0");
+    cur_bbs->push_front(start);
+    start.exits[0] = &first;
+    first.entries.push_back(&start);
+  }
+  // otherwise we don't need to insert a new block
+  // if its the one starting block we inserted in formBBs, need to set the label
+  else if (first.label == nullptr) {
+    assert(first.name == "_bb.0");
+    first.label = new Label("_bb.0");
   }
 }
 

@@ -10,6 +10,14 @@ pipeline = [
 [runs.to_ssa]
 pipeline = [
     "bril2json",
-    "../build/coretest/ssa-main",
+    "../build/coretest/to-ssa-main",
+    "brili -p {args}",
+]
+
+[runs.to_from_ssa]
+pipeline = [
+    "bril2json",
+    "../build/coretest/to-ssa-main",
+    "../build/coretest/leave-ssa-main",
     "brili -p {args}",
 ]
