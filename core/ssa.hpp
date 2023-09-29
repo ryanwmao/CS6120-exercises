@@ -12,6 +12,7 @@ class ToSSA {
   BBList &bbs_;
   const unsigned int nbbs_;
   const unsigned int nvars_;
+  bool remove_dead_phis_;
 
   struct VarInfo;
 
@@ -28,7 +29,7 @@ class ToSSA {
   VarRef genNewName(VarRef var);
 
 public:
-  ToSSA(Func &fn);
+  ToSSA(Func &fn, bool remove_dead_phis);
   ~ToSSA();
 
   void rename(BasicBlock &bb);

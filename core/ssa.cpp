@@ -151,7 +151,8 @@ void ToSSA::addPhiNodes() {
     // perform iterated dominance frontier to find places to put phis
     idf(var, temp, phis);
     // remove obivously dead phis
-    removeDeadPhis(var, phis);
+    if (remove_dead_phis_)
+      removeDeadPhis(var, phis);
 
     // actually place the phi nodes
     for (unsigned int bbi = 0; bbi < nbbs_; bbi++) {
@@ -252,9 +253,10 @@ void ToSSA::toSSA() {
   rename();
 }
 
-ToSSA::ToSSA(Func &fn)
+ToSSA::ToSSA(Func &fn, bool remove_dead_phis)
     : fn_(fn), bbs_(fn.bbs), nbbs_(static_cast<unsigned int>(fn.bbs.size())),
-      nvars_(static_cast<unsigned int>(fn.vp.nvars())) {}
+      nvars_(static_cast<unsigned int>(fn.vp.nvars())),
+      remove_dead_phis_(remove_dead_phis) {}
 
 ToSSA::~ToSSA() {}
 } // namespace bril
