@@ -10,7 +10,33 @@ namespace {
 struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM) {
         for (auto &F : M) {
-            errs() << "I saw a function called " << F.getName() << "!\n";
+            errs() << "Function " << F.getName() << "\n";
+            for (auto& B : F) {
+                for (auto& I : B) {
+                    if (auto* bop = dyn_cast<BinaryOperator>(&I)) {
+                        IRBuilder<> builder(bop);
+                        Value *lhs = bop->getOperand(0);
+                        Value *rhs = bop->getOperand(1);
+                        
+                        if (auto* lhsConst = dyn_cast<Constant>(lhs)) {
+                            if (lhsConst->isOneValue()) {
+                                lhs = builder.CreateNeg(lhs);
+                            }
+                        }
+
+                        if (auto* rhsConst = dyn_cast<Constant>(rhs)) {
+                            if (rhsConst->isOneValue()) {
+                                rhs = builder.CreateNeg(rhs);
+                            }
+                        }
+
+                        bop->setOperand(0, rhs);
+                        bop->setOperand(1, lhs);
+
+                        errs() << "     " << *bop << "\n";
+                    }
+                }
+            }
         }
         return PreservedAnalyses::all();
     };
