@@ -5,12 +5,14 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
+namespace {
 
-class LICMPass : public LoopPass {
+struct LICMPass : public LoopPass {
 public:
   static char ID;
   LICMPass() : LoopPass(ID) {}
@@ -33,7 +35,7 @@ public:
 
   // Check if an instruction is loop-invariant.
   bool isLoopInvariant(Instruction &I, Loop *L, LoopInfo *LI) {
-    return !LI->getLoopFor(&I->getParent()) || !LI->getLoopFor(&I->getParent())->contains(L);
+    return !LI->getLoopFor(I.getParent()) || !LI->getLoopFor(I.getParent())->contains(L);
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -41,9 +43,9 @@ public:
     AU.addPreserved<LoopInfoWrapperPass>();
   }
 };
+}
 
 char LICMPass::ID = 0;
-static RegisterPass<LICMPass> X("licm", "Loop Invariant Code Motion");
-extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::Pass *createLICMPass() {
-  return new LICMPass();
-}
+
+
+static RegisterPass<LICMPass> X("licm", "LICM Pass");
