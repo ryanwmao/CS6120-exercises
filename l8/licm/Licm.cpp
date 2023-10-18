@@ -1,51 +1,54 @@
-#include "llvm/Pass.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopPass.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 using namespace llvm;
 
 namespace {
+    struct LICMPass : public FunctionPass {
+        static char ID;
+        LICMPass() : FunctionPass(ID) {}
 
-struct LICMPass : public LoopPass {
-public:
-  static char ID;
-  LICMPass() : LoopPass(ID) {}
+        virtual bool runOnFunction(Function &F) {
+            LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 
-  bool runOnLoop(Loop *L, LPPassManager &LPM) override {
-    bool changed = false;
-    LoopInfo *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+            for (LoopInfo::iterator L = LI.begin(); L != LI.end(); L++) {
+                for (Loop::block_iterator BB = *L->block_begin(); BB != *L->block_end(); BB++) {
+                    BasicBlock *Preheader = *L->getLoopPreheader();
 
-    for (auto &BB : L->getBlocks()) {
-      for (auto &I : *BB) {
-        if (isLoopInvariant(I, L, LI)) {
-          I.moveBefore(L->getLoopPreheader()->getTerminator());
-          changed = true;
+                    BasicBlock::iterator I = *BB->begin();
+                    while (I != *BB->end()) {
+                        // Check if the instruction is loop invariant
+                        if (isLoopInvariant(I, *L)) {
+                            // Move the instruction to the loop preheader
+                            I->moveBefore(Preheader->getTerminator());
+                            I = (*BB)->erase(I);
+                        } else {
+                            ++I;
+                        }
+                    }
+                }
+            }
+            return true;
         }
-      }
-    }
 
-    return changed;
-  }
+        bool isLoopInvariant(Instruction *I, Loop *L) {
+            return L->isLoopInvariant(I);
+        }
 
-  // Check if an instruction is loop-invariant.
-  bool isLoopInvariant(Instruction &I, Loop *L, LoopInfo *LI) {
-    return !LI->getLoopFor(I.getParent()) || !LI->getLoopFor(I.getParent())->contains(L);
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<LoopInfoWrapperPass>();
-    AU.addPreserved<LoopInfoWrapperPass>();
-  }
-};
+        void getAnalysisUsage(AnalysisUsage &AU) const override {
+            AU.setPreservesCFG();
+            AU.addRequired<LoopInfoWrapperPass>();
+        }
+    };
 }
 
 char LICMPass::ID = 0;
 
+static void registerLICMPass(const PassManagerBuilder &Builder, legacy::PassManagerBase &PM) {
+    PM.add(new LICMPass());
+}
 
-static RegisterPass<LICMPass> X("licm", "LICM Pass");
+static RegisterStandardPasses RegisterLICMPass(PassManagerBuilder::EP_EarlyAsPossible, registerLICMPass);
