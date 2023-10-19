@@ -35,7 +35,10 @@ namespace {
         }
 
         bool isLoopInvariant(Instruction *I, Loop *L) {
-            return L->isLoopInvariant(I);
+            for (Value* operand : I->operands()) {
+                if (!L->isLoopInvariant(operand)) return false;
+            }
+            return true;
         }
 
         void getAnalysisUsage(AnalysisUsage &AU) const override {
