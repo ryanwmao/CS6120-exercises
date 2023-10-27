@@ -55,6 +55,10 @@ export class Heap<X> {
         return this.storage.size == 0;
     }
 
+    size(): number {
+      return this.storage.size;
+    }
+
     private count = 0;
     private getNewBase():number {
         let val = this.count;
@@ -1015,6 +1019,7 @@ function evalProg(prog: bril.Program) {
 
   if (profiling) {
     console.error(`total_dyn_inst: ${state.icount}`);
+    console.error(`remaining_heap_size: ${state.heap.size()}`)
   }
 
 }

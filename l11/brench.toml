@@ -1,4 +1,4 @@
-extract = 'total_dyn_inst: (\d+)'
+extract = 'remaining_heap_size: (\d+)'
 benchmarks = '../benchmarks/mem/*.bril'
 
 [runs.gc]
