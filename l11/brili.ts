@@ -44,8 +44,11 @@ export class Key {
 export class Heap<X> {
 
     private readonly storage: Map<number, X[]>
+    private readonly referenceCounts: Map<number, number>
+    
     constructor() {
         this.storage = new Map()
+        this.referenceCounts = new Map()
     }
 
     isEmpty(): boolean {
@@ -69,6 +72,7 @@ export class Heap<X> {
         }
         let base = this.getNewBase();
         this.storage.set(base, new Array(amt))
+        this.referenceCounts.set(base, 0)
         return new Key(base, 0);
     }
 
@@ -97,6 +101,25 @@ export class Heap<X> {
         } else {
             throw error(`Uninitialized heap location ${key.base} and/or illegal offset ${key.offset}`);
         }
+    }
+
+    incrementRc(key: Key): void {
+      let ct = this.referenceCounts.get(key.base)
+      if (ct !== undefined) {
+        this.referenceCounts.set(key.base, ct+1)
+      }
+    }
+
+    decrementRc(key: Key): void {
+      let ct = this.referenceCounts.get(key.base)
+      if (ct !== undefined) {
+        this.referenceCounts.set(key.base, ct-1)
+        if (this.referenceCounts.get(key.base) === 0) {
+          this.freeKey(key)
+          this.storage.delete(key.base)
+          this.referenceCounts.delete(key.base)
+        }
+      }
     }
 }
 
@@ -354,6 +377,9 @@ function evalCall(instr: bril.Operation, state: State): Action {
     }
 
     // Set the value of the arg in the new (function) environment.
+    if (typeof value === 'object' && !(value instanceof BigInt)) {
+       state.heap.incrementRc(value.loc)
+    }
     newEnv.set(params[i].name, value);
   }
 
@@ -399,7 +425,20 @@ function evalCall(instr: bril.Operation, state: State): Action {
     if (!typeCmp(instr.type, func.type)) {
       throw error(`type of value returned by function does not match declaration`);
     }
+    if (typeof retVal === 'object' && !(retVal instanceof BigInt)) {
+      state.heap.incrementRc(retVal.loc)
+    }
+    let prevDest = state.env.get(instr.dest)
+    if (typeof prevDest === 'object' && !(prevDest instanceof BigInt)) {
+      state.heap.decrementRc(prevDest.loc)
+    }
     state.env.set(instr.dest, retVal);
+  }
+
+  for (let ref of newEnv.values()) {
+    if (typeof ref === 'object' && !(ref instanceof BigInt)) {
+      state.heap.decrementRc(ref.loc)
+    }
   }
   return NEXT;
 }
@@ -451,6 +490,13 @@ function evalInstr(instr: bril.Instruction, state: State): Action {
 
   case "id": {
     let val = getArgument(instr, state.env, 0);
+    if (typeof val === 'object' && !(val instanceof BigInt)) {
+      state.heap.incrementRc(val.loc)
+    }
+    let prevDest = state.env.get(instr.dest)
+    if (typeof prevDest === 'object' && !(prevDest instanceof BigInt)) {
+      state.heap.decrementRc(prevDest.loc)
+    }
     state.env.set(instr.dest, val);
     return NEXT;
   }
@@ -641,13 +687,18 @@ function evalInstr(instr: bril.Instruction, state: State): Action {
       throw error(`cannot allocate non-pointer type ${instr.type}`);
     }
     let ptr = alloc(typ, Number(amt), state.heap);
+    if (typeof ptr === 'object' && !(ptr instanceof BigInt)) {
+      state.heap.incrementRc(ptr.loc)
+    }
+    let prevDest = state.env.get(instr.dest)
+    if (typeof prevDest === 'object' && !(prevDest instanceof BigInt)) {
+      state.heap.decrementRc(prevDest.loc)
+    }
     state.env.set(instr.dest, ptr);
     return NEXT;
   }
 
   case "free": {
-    let val = getPtr(instr, state.env, 0);
-    state.heap.free(val.loc);
     return NEXT;
   }
 
@@ -687,6 +738,10 @@ function evalInstr(instr: bril.Instruction, state: State): Action {
     let idx = labels.indexOf(state.lastlabel);
     if (idx === -1) {
       // Last label not handled. Leave uninitialized.
+      let prevDest = state.env.get(instr.dest)
+      if (typeof prevDest === 'object' && !(prevDest instanceof BigInt)) {
+        state.heap.decrementRc(prevDest.loc)
+      }
       state.env.delete(instr.dest);
     } else {
       // Copy the right argument (including an undefined one).
@@ -696,8 +751,19 @@ function evalInstr(instr: bril.Instruction, state: State): Action {
       let src = instr.args[idx];
       let val = state.env.get(src);
       if (val === undefined) {
+        let prevDest = state.env.get(instr.dest)
+        if (typeof prevDest === 'object' && !(prevDest instanceof BigInt)) {
+          state.heap.decrementRc(prevDest.loc)
+        }
         state.env.delete(instr.dest);
       } else {
+        if (typeof val === 'object' && !(val instanceof BigInt)) {
+          state.heap.incrementRc(val.loc)
+        }
+        let prevDest = state.env.get(instr.dest)
+        if (typeof prevDest === 'object' && !(prevDest instanceof BigInt)) {
+          state.heap.decrementRc(prevDest.loc)
+        }
         state.env.set(instr.dest, val);
       }
     }
