@@ -1,0 +1,2 @@
+(x >> 64) udiv 32767
+((x >> 64) lshr hv1) + ((x >> 64) lshr hv2) + ((x >> 64) lshr hv3) + ((x >> 64) lshr hv4)

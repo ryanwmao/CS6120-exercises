@@ -95,7 +95,7 @@ def pretty(tree, subst={}, paren=False):
             return s
 
     op = tree.data
-    if op in ('add', 'sub', 'mul', 'div', 'shl', 'shr', 'mod', 'and'):
+    if op in ('add', 'sub', 'mul', 'div', 'shl', 'shr', 'mod', 'and', 'udiv', 'lshr'):
         lhs = pretty(tree.children[0], subst, True)
         rhs = pretty(tree.children[1], subst, True)
         c = {
@@ -107,6 +107,8 @@ def pretty(tree, subst={}, paren=False):
             'shr': '>>',
             'mod': '%',
             'and': '&',
+            'udiv': 'udiv',
+            'lshr': 'lshr'
         }[op]
         return par('{} {} {}'.format(lhs, c, rhs))
     elif op == 'neg':
