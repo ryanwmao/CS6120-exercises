@@ -1,0 +1,2 @@
+x udiv 32767
+(x >> hv1) + (hb1 ? hc1 : (x >> hv2 + (hb2 ? hc2 : (x >> hv3 + (hb3 ? hc3 : (x >> hv4 ) ) ) ) ) )
